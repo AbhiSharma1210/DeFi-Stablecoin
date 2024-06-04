@@ -23,7 +23,7 @@
 // private
 // view & pure functions
 
-pragma solidity ^0.8.20;
+pragma solidity 0.8.20;
 
 /**
  * @title DSCEngine
@@ -44,6 +44,9 @@ pragma solidity ^0.8.20;
  * @notice This contract is VERY loosely based on the MakerDAO DSS (DAI) system.
  */
 contract DSCEngine {
+    //////////////
+    // Error(s) //
+    //////////////
     error DSCEngine__AmountMoreThanZero();
 
     /////////////////
