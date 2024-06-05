@@ -25,6 +25,9 @@
 
 pragma solidity 0.8.20;
 
+import {DecentralizedStableCoin} from "./DecentralizedStableCoin.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+
 /**
  * @title DSCEngine
  * @author Abhinav Sharma
@@ -43,11 +46,22 @@ pragma solidity 0.8.20;
  *
  * @notice This contract is VERY loosely based on the MakerDAO DSS (DAI) system.
  */
-contract DSCEngine {
+contract DSCEngine is ReentrancyGuard {
     //////////////
     // Error(s) //
     //////////////
     error DSCEngine__AmountMoreThanZero();
+    error DSCEngine__TokenAddressesAndPriceFeedAddressesLengthMismatch();
+    error DSCEngine__NotAllowedToken();
+
+    /////////////////////
+    // State Variables //
+    /////////////////////
+    mapping(address token => address priceFeed) private s_priceFeeds;
+    mapping(address user => mapping(address token => uint256 amount))
+        private s_collateralDeposited;
+
+    DecentralizedStableCoin private immutable i_dsc;
 
     /////////////////
     // Modifier(s) //
@@ -57,6 +71,32 @@ contract DSCEngine {
             revert DSCEngine__AmountMoreThanZero();
         }
         _;
+    }
+
+    modifier isAllowedToken(address token) {
+        if (s_priceFeeds[token] == address(0)) {
+            revert DSCEngine__NotAllowedToken();
+        }
+        _;
+    }
+
+    /////////////////
+    // Function(s) //
+    /////////////////
+    constructor(
+        address[] memory tokenAddresses,
+        address[] memory priceFeedAddresses,
+        address dscAddress
+    ) {
+        // USD Price Feeds
+        if (tokenAddresses.length != priceFeedAddresses.length) {
+            revert DSCEngine__TokenAddressesAndPriceFeedAddressesLengthMismatch();
+        }
+        // Example: ETH / USD, BTC / USD, MKR / USD, etc
+        for (uint256 i = 0; i < tokenAddresses.length; i++) {
+            s_priceFeeds[tokenAddresses[i]] = priceFeedAddresses[i];
+        }
+        i_dsc = DecentralizedStableCoin(dscAddress);
     }
 
     function depositCollateralAndMintDsc() external {}
@@ -70,7 +110,12 @@ contract DSCEngine {
     function depositCollateral(
         address tokenCollateralAddress,
         uint256 amountCollateral
-    ) external moreThanZero(amountCollateral) {}
+    )
+        external
+        moreThanZero(amountCollateral)
+        isAllowedToken(tokenCollateralAddress)
+        nonReentrant
+    {}
 
     function redeemCollateralForDsc() external {}
 
