@@ -27,6 +27,7 @@ pragma solidity 0.8.20;
 
 import {DecentralizedStableCoin} from "./DecentralizedStableCoin.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
  * @title DSCEngine
@@ -53,15 +54,21 @@ contract DSCEngine is ReentrancyGuard {
     error DSCEngine__AmountMoreThanZero();
     error DSCEngine__TokenAddressesAndPriceFeedAddressesLengthMismatch();
     error DSCEngine__NotAllowedToken();
+    error DSCEngine__TransferFailed();
 
     /////////////////////
     // State Variables //
     /////////////////////
     mapping(address token => address priceFeed) private s_priceFeeds;
-    mapping(address user => mapping(address token => uint256 amount))
-        private s_collateralDeposited;
+    mapping(address user => mapping(address token => uint256 amount)) private s_collateralDeposited;
+    mapping(address user => uint256 amountDscMinted) private s_DSCMinted;
 
     DecentralizedStableCoin private immutable i_dsc;
+
+    //////////////
+    // Event(s) //
+    //////////////
+    event CollateralDeposited(address indexed user, address indexed token, uint256 amount);
 
     /////////////////
     // Modifier(s) //
@@ -80,14 +87,10 @@ contract DSCEngine is ReentrancyGuard {
         _;
     }
 
-    /////////////////
-    // Function(s) //
-    /////////////////
-    constructor(
-        address[] memory tokenAddresses,
-        address[] memory priceFeedAddresses,
-        address dscAddress
-    ) {
+    //////////////////////////
+    // External Function(s) //
+    //////////////////////////
+    constructor(address[] memory tokenAddresses, address[] memory priceFeedAddresses, address dscAddress) {
         // USD Price Feeds
         if (tokenAddresses.length != priceFeedAddresses.length) {
             revert DSCEngine__TokenAddressesAndPriceFeedAddressesLengthMismatch();
@@ -102,30 +105,69 @@ contract DSCEngine is ReentrancyGuard {
     function depositCollateralAndMintDsc() external {}
 
     /**
-     *
+     * @notice follows CEI - Checks, Effects and Interactions
      * @param tokenCollateralAddress The address of the token to be deposited as collateral
      * @param amountCollateral The amount of collateral to deposit
      */
 
-    function depositCollateral(
-        address tokenCollateralAddress,
-        uint256 amountCollateral
-    )
+    function depositCollateral(address tokenCollateralAddress, uint256 amountCollateral)
         external
         moreThanZero(amountCollateral)
         isAllowedToken(tokenCollateralAddress)
         nonReentrant
-    {}
+    {
+        s_collateralDeposited[msg.sender][tokenCollateralAddress] += amountCollateral;
+        emit CollateralDeposited(msg.sender, tokenCollateralAddress, amountCollateral);
+        bool success = IERC20(tokenCollateralAddress).transferFrom(msg.sender, address(this), amountCollateral);
+        if (!success) {
+            revert DSCEngine__TransferFailed();
+        }
+    }
 
     function redeemCollateralForDsc() external {}
 
     function redeemCollateral() external {}
 
-    function mintDsc() external {}
+    // To mint the DSC we need following
+    // 1. Check if the collateral value > DSC amount
+    // 2. Check price feeds
+    // 3. Check values and other things
+
+    /**
+     * @notice follows CEI
+     * @param amountDscToMint The amount of decentralized stablecoin to mint
+     * @notice They must have more collateral than the minimum threshold
+     */
+    function mintDsc(uint256 amountDscToMint) external moreThanZero(amountDscToMint) nonReentrant {
+        s_DSCMinted[msg.sender] += amountDscToMint;
+
+        // This function reverts if Minted value is more than collateral
+        _revertHealthFactorBroken(msg.sender);
+    }
 
     function burnDsc() external {}
 
     function liquidate() external {}
 
     function getHealthFactor() external view {}
+
+    ////////////////////////////////////////
+    // Privte & Internal view Function(s) //
+    ////////////////////////////////////////
+    function _getAccountInformation() private view returns (uint256 totalUsdMinted, uint256 callateralValueInUsd) {}
+
+    /*
+     * Returns how close to liquidation a user is 
+     * If the user gets below 1, then they can get liquidated.
+     */
+    function _healthFactor(address user) private view returns (uint256) {
+        // require - total DSC minted
+        // require - total collateral value
+        (uint256 totalUsdMinted, uint256 collateralValueInUsd) = _getAccountInformation(user);
+    }
+
+    function _revertHealthFactorBroken(address user) internal view {
+        // 1. Check health factor (enough collateral)
+        // 2. If not then revert.
+    }
 }
