@@ -151,10 +151,17 @@ contract DSCEngine is ReentrancyGuard {
 
     function getHealthFactor() external view {}
 
-    ////////////////////////////////////////
-    // Privte & Internal view Function(s) //
-    ////////////////////////////////////////
-    function _getAccountInformation() private view returns (uint256 totalUsdMinted, uint256 callateralValueInUsd) {}
+    /////////////////////////////////////////
+    // Private & Internal view Function(s) //
+    /////////////////////////////////////////
+    function _getAccountInformation(address user)
+        private
+        view
+        returns (uint256 totalDscMinted, uint256 collateralValueInUsd)
+    {
+        totalDscMinted = s_DSCMinted[user];
+        collateralValueInUsd = getAccountCollateralValue(user);
+    }
 
     /*
      * Returns how close to liquidation a user is 
@@ -170,4 +177,8 @@ contract DSCEngine is ReentrancyGuard {
         // 1. Check health factor (enough collateral)
         // 2. If not then revert.
     }
+    ////////////////////////////////////////
+    // Public & External view Function(s) //
+    ////////////////////////////////////////
+    function getAccountCollateral(address user) public view returns (uint256) {}
 }
