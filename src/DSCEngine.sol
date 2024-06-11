@@ -60,6 +60,10 @@ contract DSCEngine is ReentrancyGuard {
     /////////////////////
     // State Variables //
     /////////////////////
+    uint256 private constant ADDITIONAL_FEED_PRICISION = 1e10;
+    uint256 private constant PRECISION = 1e18;
+
+
     mapping(address token => address priceFeed) private s_priceFeeds;
     mapping(address user => mapping(address token => uint256 amount)) private s_collateralDeposited;
     mapping(address user => uint256 amountDscMinted) private s_DSCMinted;
@@ -194,6 +198,10 @@ contract DSCEngine is ReentrancyGuard {
     }
 
     function getUsdValue(address token, uint256 amount) public view returns(uint256) {
-
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(s_priceFeeds[token]);
+        (,int256 price,,,) = priceFeed.latestRoundData();
+        // 1 ETH = $1000
+        // The returned value from CL will be 1000 * 1e8
+        return ((uint256(price) * ADDITIONAL_FEED_PRICISION) * amount) / PRECISION;
     }
 }
