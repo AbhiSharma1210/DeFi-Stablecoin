@@ -63,7 +63,6 @@ contract DSCEngine is ReentrancyGuard {
     uint256 private constant ADDITIONAL_FEED_PRICISION = 1e10;
     uint256 private constant PRECISION = 1e18;
 
-
     mapping(address token => address priceFeed) private s_priceFeeds;
     mapping(address user => mapping(address token => uint256 amount)) private s_collateralDeposited;
     mapping(address user => uint256 amountDscMinted) private s_DSCMinted;
@@ -178,6 +177,8 @@ contract DSCEngine is ReentrancyGuard {
         // require - total DSC minted
         // require - total collateral value
         (uint256 totalUsdMinted, uint256 collateralValueInUsd) = _getAccountInformation(user);
+        // return health factor ratio
+        return (collateralValueInUsd / totalUsdMinted);
     }
 
     function _revertHealthFactorBroken(address user) internal view {
@@ -187,19 +188,21 @@ contract DSCEngine is ReentrancyGuard {
     ////////////////////////////////////////
     // Public & External view Function(s) //
     ////////////////////////////////////////
-    function getAccountCollateralValue(address user) public view returns (uint256) {
+
+    function getAccountCollateralValue(address user) public view returns (uint256 totalCollateralInUsd) {
         // loop through each collateral token, get the amount they have depoisited,
         // and map it to the price to get the USD value
-        for(uint256 i=0; i<s_collateralTokens.length; i++) {
+        for (uint256 i = 0; i < s_collateralTokens.length; i++) {
             address token = s_collateralTokens[i];
             uint256 amount = s_collateralDeposited[user][token];
-            totalCollateralInUsd = 
+            totalCollateralInUsd += getUsdValue(token, amount);
         }
+        return totalCollateralInUsd;
     }
 
-    function getUsdValue(address token, uint256 amount) public view returns(uint256) {
+    function getUsdValue(address token, uint256 amount) public view returns (uint256) {
         AggregatorV3Interface priceFeed = AggregatorV3Interface(s_priceFeeds[token]);
-        (,int256 price,,,) = priceFeed.latestRoundData();
+        (, int256 price,,,) = priceFeed.latestRoundData();
         // 1 ETH = $1000
         // The returned value from CL will be 1000 * 1e8
         return ((uint256(price) * ADDITIONAL_FEED_PRICISION) * amount) / PRECISION;
