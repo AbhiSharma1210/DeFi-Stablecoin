@@ -20,12 +20,16 @@ contract DSCEngineTest is Test {
     address public USER = makeAddr("user");
 
     uint256 public constant AMOUNT_COLLATERAL = 10 ether;
+    uint256 public constant STARTING_ERC20_BALANCE = 10 ether;
     // error Failed__testGet_usd_value();
 
     function setUp() public {
         deployer = new DeployDSC();
         (dsc, dscEngine, config) = deployer.run();
         (ethUsdPriceFeed,, weth,,) = config.activeNetworkConfig();
+
+        // Minting the USER
+        ERC20Mock(weth).mint(USER, STARTING_ERC20_BALANCE);
     }
 
     /////////////////
@@ -52,6 +56,8 @@ contract DSCEngineTest is Test {
         vm.startPrank(USER);
         ERC20Mock(weth).approve(address(dscEngine), AMOUNT_COLLATERAL);
 
-        vm.expectRevert(DSCEngine.DSCEngine__AmountMoreThanZero);
+        vm.expectRevert(DSCEngine.DSCEngine__AmountMoreThanZero.selector);
+        dscEngine.depositCollateral(weth, 0);
+        vm.stopPrank();
     }
 }
