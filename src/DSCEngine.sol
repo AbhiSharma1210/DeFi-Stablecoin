@@ -79,6 +79,7 @@ contract DSCEngine is ReentrancyGuard {
     // Event(s) //
     //////////////
     event CollateralDeposited(address indexed user, address indexed token, uint256 amount);
+    event CollateralRedeemed(address indexed user, address indexed token, uint256 amount);
 
     /////////////////
     // Modifier(s) //
@@ -130,9 +131,36 @@ contract DSCEngine is ReentrancyGuard {
 
     function redeemCollateralForDsc() external {}
 
-    function redeemCollateral() external {}
+    // To redeem Collateral:
+    // 1. Health factor must be over 1 AFTER pulling collateral
+    // This needs to be refactored as per DRY (Don't repeat yourself: )
+    function redeemCollateral(address tokenCollateralAddress, uint256 amountCollateral)
+        external
+        moreThanZero(amountCollateral)
+        nonReentrant
+    {
+        // If user try to pull more than what they have, then it should auto revert
+        s_collateralDeposited[msg.sender][tokenCollateralAddress] -= amountCollateral;
+        emit CollateralRedeemed(msg.sender, tokenCollateralAddress, amountCollateral);
 
-    function burnDsc() external {}
+        bool success = IERC20(tokenCollateralAddress).transfer(msg.sender, amountCollateral);
+        if (!success) {
+            revert DSCEngine__TransferFailed();
+        }
+        _revertHealthFactorBroken(msg.sender);
+    }
+
+    // Since we are buring token, we probably don't want to check the health factor
+    function burnDsc(uint256 amount) public moreThanZero(amount) {
+        s_DSCMinted[msg.sender] -= amount;
+        bool success = i_dsc.transferFrom(msg.sender, address(this), amount);
+        // Below condition is hypothetically unreachable
+        if (!success) {
+            revert DSCEngine__TransferFailed();
+        }
+        i_dsc.burn(amount);
+        _revertHealthFactorBroken(msg.sender); // This would probably never hit..
+    }
 
     function liquidate() external {}
 
