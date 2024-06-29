@@ -129,11 +129,18 @@ contract DSCEngine is ReentrancyGuard {
         mintDsc(amountDscToMint);
     }
 
+    /**
+     * @param tokenCollateralAddress The collateral address to redeem
+     * @param amountCollateral The amount of collateral to redeem
+     * @param amountDscToBurn The amount of DSC to burn
+     * This function burns DSC and redeem collateral in one transaction
+     */
     function redeemCollateralForDsc(address tokenCollateralAddress, uint256 amountCollateral, uint256 amountDscToBurn)
         external
     {
         burnDsc(amountDscToBurn);
         redeemCollateral(tokenCollateralAddress, amountCollateral);
+        // redeemCollateral already checks health factor and amountCollateral
     }
 
     // To redeem Collateral:
@@ -167,6 +174,11 @@ contract DSCEngine is ReentrancyGuard {
         _revertHealthFactorBroken(msg.sender); // This would probably never hit..
     }
 
+    // If the system starts nearing undercollateralization, someone must liquidate the position
+    // If the price of ETH drops down then it's required to liquidate
+    // If someone is undercollateralized then the system will pay them to liquidate
+    // Example: If the price drops to $75 backing $50 DSC -> this is way less then the threshold
+    // So the liquidator will take the $75 backing and burn off the $50 DSC
     function liquidate() external {}
 
     function getHealthFactor() external view {}
