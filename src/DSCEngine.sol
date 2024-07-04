@@ -226,7 +226,7 @@ contract DSCEngine is ReentrancyGuard {
     /**
      * @dev Low-level internal function, do not call unless the function it's checking for health factor is/being broken
      * @param amountDscToBurn The amount of DSC that needs to be burned
-     * @param onBehalf Who's DSC are we burning for or who's debt are we paying
+     * @param onBehalf Who's DSC are we burning for / who's debt are we paying
      * @param dscFrom Where are we getting the DSC from
      */
     function _burnDsc(uint256 amountDscToBurn, address onBehalf, address dscFrom) private {
