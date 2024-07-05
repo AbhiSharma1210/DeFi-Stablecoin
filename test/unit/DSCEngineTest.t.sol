@@ -32,7 +32,17 @@ contract DSCEngineTest is Test {
         // Minting the USER
         ERC20Mock(weth).mint(USER, STARTING_ERC20_BALANCE);
     }
+    /////////////////
+    // Modifier(s) //
+    /////////////////
 
+    modifier depositedCollateral() {
+        vm.startPrank(USER);
+        ERC20Mock(weth).approve(address(dscEngine), AMOUNT_COLLATERAL);
+        dscEngine.depositCollateral(weth, AMOUNT_COLLATERAL);
+        vm.stopPrank();
+        _;
+    }
     ///////////////////////
     // Constructor Tests //
     ///////////////////////
@@ -94,5 +104,14 @@ contract DSCEngineTest is Test {
         // In next line, we try to mint a random token. Which should revert.
         dscEngine.depositCollateral(address(ranToken), AMOUNT_COLLATERAL);
         vm.stopPrank();
+    }
+
+    function testCan_deposit_collateral_and_get_account_info() public depositedCollateral {
+        (uint256 totalDscMinted, uint256 collateralValueInUsd) = dscEngine.getAccountInformation(USER);
+
+        uint256 expectedTotalDscMinted = 0;
+        uint256 expectedDepositedAmount = dscEngine.getTokenAmountFromUsd(weth, collateralValueInUsd);
+        assertEq(totalDscMinted, expectedTotalDscMinted);
+        assertEq(AMOUNT_COLLATERAL, expectedDepositedAmount);
     }
 }
